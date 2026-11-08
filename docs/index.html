@@ -451,6 +451,12 @@ function viewProfile() {
   const styles = ['', ...Object.keys(STYLES)].map(s => `<option value="${s}" ${state.settings.style === s ? 'selected' : ''}>${s || 'Nessuna preferenza'}</option>`).join('');
   return `<div class="top"><h1>Profilo</h1></div>
   <div class="card"><label class="field">Stile preferito<select id="pref">${styles}</select></label></div>
+  <div class="card"><h3>Riconoscimento AI</h3>
+    <p class="muted" style="margin:0">Con una chiave API Groq, la foto del capo viene inviata a Groq solo quando la aggiungi, per riconoscere tipo, categoria, colore, stagione e materiale. Senza chiave il colore si legge comunque dalla foto. La chiave resta in questo browser e non entra nel backup.</p>
+    <label class="field">Chiave API Groq<input id="xkey" type="password" autocomplete="off" placeholder="Incolla la chiave"></label>
+    <div class="row"><button id="xsave">Salva chiave</button><button class="danger" id="xdel">Rimuovi chiave</button></div>
+    <p class="muted" style="margin:0">${getKey() ? 'Chiave salvata in questo browser.' : 'Nessuna chiave salvata.'}</p>
+  </div>
   <div class="card"><h3>Dati</h3>
     <p class="muted" style="margin:0">I dati restano in questo browser. Per fare un backup, copia il testo qui sotto e incollalo in una nota o un file da conservare.</p>
     <div class="row"><button id="exp">Crea backup</button><button class="danger" id="wipe">Cancella tutti i dati</button></div>
@@ -459,12 +465,6 @@ function viewProfile() {
     <h3 style="margin-top:8px">Ripristino</h3>
     <textarea id="restore" class="mono" placeholder="Incolla qui il testo del backup"></textarea>
     <div class="row"><button id="imp">Ripristina</button></div>
-  </div>
-  <div class="card"><h3>Riconoscimento AI</h3>
-    <p class="muted" style="margin:0">Con una chiave API Groq, la foto del capo viene inviata a Groq solo quando la aggiungi, per riconoscere tipo, categoria, colore, stagione e materiale. Senza chiave il colore si legge comunque dalla foto. La chiave resta in questo browser e non entra nel backup.</p>
-    <label class="field">Chiave API Groq<input id="xkey" type="password" autocomplete="off" placeholder="Incolla la chiave"></label>
-    <div class="row"><button id="xsave">Salva chiave</button><button class="danger" id="xdel">Rimuovi chiave</button></div>
-    <p class="muted" style="margin:0">${getKey() ? 'Chiave salvata in questo browser.' : 'Nessuna chiave salvata.'}</p>
   </div>
   <div class="card"><h3>Privacy</h3><p class="muted" style="margin:0">Le foto restano nel browser di questo dispositivo. Nessun account. Solo con la chiave API Groq, la foto di un capo viene inviata a Groq per il riconoscimento.</p></div>`;
 }
