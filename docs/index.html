@@ -157,7 +157,7 @@ async function persist() {
   } catch (e) { toast('Salvataggio non riuscito: lo spazio del browser è pieno o bloccato.'); }
 }
 
-/* ---------- Foto e colore (il colore si legge nel browser; la foto va a xAI solo se c'è una chiave) ---------- */
+/* ---------- Foto e colore (il colore si legge nel browser; la foto va a Groq solo se c'è una chiave) ---------- */
 function loadImage(file) {
   return new Promise((res, rej) => {
     const url = URL.createObjectURL(file); const img = new Image();
@@ -212,12 +212,12 @@ function analyzeColor(canvas) {
   return { name: best[0], h: g.h / g.n, s: g.s / g.n, v: g.v / g.n };
 }
 
-/* ---------- Riconoscimento AI (Grok): tipo, categoria, colore, stagione, materiale ---------- */
-const XAI_KEY = 'mw_xai_key', XAI_MODEL = 'grok-4';
+/* ---------- Riconoscimento AI: tipo, categoria, colore, stagione, materiale ---------- */
+const AI_KEY = 'mw_ai_key', AI_URL = 'https://api.groq.com/openai/v1/chat/completions', AI_MODEL = 'qwen/qwen3.8-27b';
 const CAT_NAMES = Object.keys(CATS), COLOR_NAMES = PALETTE.map(p => p[0]), STYLE_NAMES = Object.keys(STYLES), SEASON_NAMES = [...SEASONS, ALL];
 /* La chiave resta in localStorage di questo browser: non entra nel backup. */
-function getKey() { try { return localStorage.getItem(XAI_KEY) || ''; } catch (e) { return ''; } }
-function setKey(v) { try { if (v) localStorage.setItem(XAI_KEY, v); else localStorage.removeItem(XAI_KEY); return true; } catch (e) { return false; } }
+function getKey() { try { return localStorage.getItem(AI_KEY) || ''; } catch (e) { return ''; } }
+function setKey(v) { try { if (v) localStorage.setItem(AI_KEY, v); else localStorage.removeItem(AI_KEY); return true; } catch (e) { return false; } }
 async function recognizeGarment(dataUrl) {
   const prompt = `Analizza la foto di questo capo d'abbigliamento e rispondi SOLO con un oggetto JSON, senza altro testo, con questi campi:
 "name": nome breve in italiano (es. "Maglione girocollo blu"),
@@ -227,10 +227,10 @@ async function recognizeGarment(dataUrl) {
 "style": una tra ${JSON.stringify(STYLE_NAMES)},
 "material": materiale probabile in italiano (es. "cotone"), oppure "",
 "waterproof": true se è impermeabile o antipioggia, altrimenti false.`;
-  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+  const res = await fetch(AI_URL, {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + getKey(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: XAI_MODEL, temperature: 0, messages: [{ role: 'user', content: [
+    body: JSON.stringify({ model: AI_MODEL, temperature: 0, messages: [{ role: 'user', content: [
       { type: 'image_url', image_url: { url: dataUrl } }, { type: 'text', text: prompt }] }] })
   });
   if (!res.ok) throw new Error('errore ' + res.status);
@@ -460,13 +460,13 @@ function viewProfile() {
     <textarea id="restore" class="mono" placeholder="Incolla qui il testo del backup"></textarea>
     <div class="row"><button id="imp">Ripristina</button></div>
   </div>
-  <div class="card"><h3>Riconoscimento AI (Grok)</h3>
-    <p class="muted" style="margin:0">Con una chiave xAI, la foto del capo viene inviata a xAI solo quando la aggiungi, per riconoscere tipo, categoria, colore, stagione e materiale. Senza chiave il colore si legge comunque dalla foto. La chiave resta in questo browser e non entra nel backup.</p>
-    <label class="field">Chiave API xAI<input id="xkey" type="password" autocomplete="off" placeholder="Incolla la chiave"></label>
+  <div class="card"><h3>Riconoscimento AI</h3>
+    <p class="muted" style="margin:0">Con una chiave API Groq, la foto del capo viene inviata a Groq solo quando la aggiungi, per riconoscere tipo, categoria, colore, stagione e materiale. Senza chiave il colore si legge comunque dalla foto. La chiave resta in questo browser e non entra nel backup.</p>
+    <label class="field">Chiave API Groq<input id="xkey" type="password" autocomplete="off" placeholder="Incolla la chiave"></label>
     <div class="row"><button id="xsave">Salva chiave</button><button class="danger" id="xdel">Rimuovi chiave</button></div>
     <p class="muted" style="margin:0">${getKey() ? 'Chiave salvata in questo browser.' : 'Nessuna chiave salvata.'}</p>
   </div>
-  <div class="card"><h3>Privacy</h3><p class="muted" style="margin:0">Le foto restano nel browser di questo dispositivo. Nessun account. Solo con la chiave xAI, la foto di un capo viene inviata a xAI per il riconoscimento.</p></div>`;
+  <div class="card"><h3>Privacy</h3><p class="muted" style="margin:0">Le foto restano nel browser di questo dispositivo. Nessun account. Solo con la chiave API Groq, la foto di un capo viene inviata a Groq per il riconoscimento.</p></div>`;
 }
 
 /* ---------- Azioni e legami ---------- */
@@ -549,7 +549,7 @@ function openEditor(id) {
       if (!$('#f-name').value) $('#f-name').value = $('#f-cat').value + ' ' + c.name.toLowerCase();
       toast('Foto caricata. Colore riconosciuto: ' + c.name.toLowerCase());
     } catch (err) { toast('Non riesco a leggere questa foto'); return; }
-    if (!getKey()) return toast('Per riconoscere tipo e stagione, inserisci la chiave xAI nel Profilo');
+    if (!getKey()) return toast('Per riconoscere tipo e stagione, inserisci la chiave API nel Profilo');
     toast('Riconoscimento del capo in corso…');
     try {
       const r = await recognizeGarment(photo);
