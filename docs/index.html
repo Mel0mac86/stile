@@ -1,0 +1,593 @@
+<title>MyWardrobe AI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Palette: carta calda, inchiostro, cammello come unico accento. */
+:root {
+  --bg: #F4F1EB; --surface: #FFFFFF; --ink: #1C1B19; --muted: #6F6A60;
+  --line: #E2DCD0; --accent: #7A5C3A; --accent-ink: #FFFFFF; --good: #3F6B4E; --warn: #9A5B12;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15140F; --surface: #1F1E19; --ink: #F2EEE6; --muted: #A39D90;
+    --line: #34312A; --accent: #D2B38A; --accent-ink: #15140F; --good: #8DC79F; --warn: #E3B264;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15140F; --surface: #1F1E19; --ink: #F2EEE6; --muted: #A39D90;
+  --line: #34312A; --accent: #D2B38A; --accent-ink: #15140F; --good: #8DC79F; --warn: #E3B264;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Manrope", system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  min-height: 100vh;
+}
+h1, h2, h3 { font-family: "Newsreader", Georgia, serif; font-weight: 500; text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: 30px; } h2 { font-size: 22px; } h3 { font-size: 17px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 9px 16px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+button.danger { color: #B3261E; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: default; }
+input, select, textarea { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+label.field { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.wrap { max-width: 640px; margin: 0 auto; padding-block: 8px 110px; display: grid; gap: 22px; }
+.top { display: flex; justify-content: space-between; align-items: end; gap: 12px; padding-top: 12px; }
+.muted { color: var(--muted); font-size: 13px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.thumb { aspect-ratio: 3 / 4; background: var(--bg); border-radius: 14px; overflow: hidden; display: grid; place-items: center; max-width: 100%; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+.strip .thumb { aspect-ratio: 3 / 4; }
+.tag { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.score { font-size: 12px; font-weight: 600; color: var(--good); }
+.warn { color: var(--warn); font-size: 13px; }
+.comp { position: relative; aspect-ratio: 4 / 5; background: var(--surface); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; }
+.comp .it { position: absolute; transform: translate(-50%, -50%); width: var(--w); height: var(--h); }
+.comp .it img { width: 100%; height: 100%; object-fit: contain; }
+nav.tabs { position: fixed; left: 0; right: 0; bottom: env(safe-area-inset-bottom, 0px); background: var(--surface); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px max(8px, env(safe-area-inset-left, 0px)) 10px; }
+nav.tabs button { border: 0; border-radius: 12px; background: transparent; padding: 6px 2px; font-size: 11px; color: var(--muted); }
+nav.tabs button[aria-current="page"] { color: var(--accent); font-weight: 700; }
+dialog { border: 1px solid var(--line); border-radius: 22px; background: var(--bg); color: var(--ink); width: min(640px, calc(100% - 24px)); max-height: 90vh; padding: 0; }
+dialog::backdrop { background: rgba(0,0,0,.4); }
+.sheet { padding: 18px; display: grid; gap: 16px; overflow-y: auto; max-height: 90vh; }
+.toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; }
+.stars button { border: 0; background: none; padding: 2px; font-size: 22px; color: var(--muted); }
+.stars button.on { color: var(--accent); }
+textarea.mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; min-height: 120px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap" id="app">
+  <div class="card"><p class="muted">Caricamento del guardaroba…</p></div>
+</div>
+
+<nav class="tabs" aria-label="Sezioni">
+  <button data-tab="home">Home</button>
+  <button data-tab="wardrobe">Guardaroba</button>
+  <button data-tab="stylist">Stilista</button>
+  <button data-tab="favs">Preferiti</button>
+  <button data-tab="profile">Profilo</button>
+</nav>
+<div class="toast" id="toast" role="status"></div>
+<dialog id="sheet"><div class="sheet" id="sheetBody"></div></dialog>
+
+<script>
+/* ---------- Utilità ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'id' + Date.now() + Math.random().toString(16).slice(2);
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ---------- Dati: categorie, occasioni, stagioni (stessi valori dell'app iOS) ---------- */
+const CATS = {
+  'Magliette': { slot: 'top', warmth: 1, f: 1 }, 'Camicie': { slot: 'top', warmth: 2, f: 3 },
+  'Polo': { slot: 'top', warmth: 2, f: 2 }, 'Felpe': { slot: 'top', warmth: 3, f: 1 },
+  'Maglioni': { slot: 'top', warmth: 4, f: 2 }, 'Giacche': { slot: 'outerwear', warmth: 3, f: 3 },
+  'Cappotti': { slot: 'outerwear', warmth: 5, f: 4 }, 'Pantaloni': { slot: 'bottom', warmth: 2, f: 3 },
+  'Jeans': { slot: 'bottom', warmth: 2, f: 1 }, 'Pantaloncini': { slot: 'bottom', warmth: 1, f: 1 },
+  'Gonne': { slot: 'bottom', warmth: 1, f: 3 }, 'Abiti': { slot: 'dress', warmth: 2, f: 3 },
+  'Scarpe': { slot: 'shoes', warmth: 2, f: 3 }, 'Sneakers': { slot: 'shoes', warmth: 2, f: 1 },
+  'Stivali': { slot: 'shoes', warmth: 4, f: 2 }, 'Accessori': { slot: 'accessory', warmth: 1, f: 2 },
+  'Borse': { slot: 'accessory', warmth: 1, f: 2 }, 'Cinture': { slot: 'accessory', warmth: 1, f: 2 },
+  'Altro': { slot: 'accessory', warmth: 2, f: 2 }
+};
+const STYLES = { 'Sportivo': 1, 'Casual': 2, 'Smart casual': 3, 'Elegante': 4, 'Formale': 5 };
+const SEASONS = ['Primavera', 'Estate', 'Autunno', 'Inverno'];
+const ALL = 'Tutte le stagioni';
+const OCCASIONS = {
+  'Lavoro': 3, 'Ufficio': 4, 'Riunione importante': 4, 'Colloquio di lavoro': 4, 'Uscita con amici': 2,
+  'Appuntamento romantico': 3, 'Cena elegante': 4, 'Matrimonio': 5, 'Cerimonia': 5, 'Festa': 3,
+  'Aperitivo': 2, 'Tempo libero': 1, 'Sport': 1, 'Vacanza': 2, 'Viaggio': 2, 'Passeggiata': 1, 'Evento particolare': 3
+};
+const OCC_RULES = [
+  [['colloquio', 'interview'], 'Colloquio di lavoro'], [['matrimonio', 'nozze', 'sposa', 'sposo'], 'Matrimonio'],
+  [['cerimonia', 'laurea', 'battesimo'], 'Cerimonia'], [['riunione', 'meeting', 'presentazione'], 'Riunione importante'],
+  [['ufficio'], 'Ufficio'], [['lavoro'], 'Lavoro'], [['cena'], 'Cena elegante'],
+  [['appuntamento', 'romantic'], 'Appuntamento romantico'], [['aperitivo', 'drink'], 'Aperitivo'],
+  [['festa', 'party', 'compleanno'], 'Festa'], [['amici'], 'Uscita con amici'],
+  [['sport', 'palestra', 'corsa', 'allenamento'], 'Sport'], [['vacanza', 'spiaggia'], 'Vacanza'],
+  [['viaggio', 'aereo', 'treno'], 'Viaggio'], [['passeggiata', 'parco'], 'Passeggiata'],
+  [['tempo libero', 'relax', 'weekend'], 'Tempo libero'], [['evento'], 'Evento particolare']
+];
+const PALETTE = [
+  ['Nero', 0, 0, .1], ['Bianco', 0, 0, .97], ['Grigio', 0, 0, .55], ['Beige', .1, .2, .85],
+  ['Marrone', .07, .6, .4], ['Rosso', 0, .8, .8], ['Arancione', .07, .8, .95], ['Giallo', .14, .8, .95],
+  ['Verde', .33, .6, .6], ['Azzurro', .48, .45, .9], ['Blu', .61, .7, .7], ['Blu navy', .64, .7, .3],
+  ['Viola', .75, .6, .6], ['Rosa', .9, .4, .95]
+];
+const LAYOUT = { top: [.5, .27, .56, .3], dress: [.5, .36, .62, .5], bottom: [.5, .64, .46, .34], shoes: [.5, .9, .42, .14], outerwear: [.5, .25, .7, .36], accessory: [.84, .86, .24, .16] };
+const UNUSED_DAYS = 60;
+
+/* ---------- Stato e archiviazione (IndexedDB: resta nel browser di questo dispositivo) ---------- */
+let state = { garments: [], outfits: [], wears: [], settings: { style: '', manualTemp: null } };
+let tab = 'home', favTab = 'favs', calDay = new Date().toISOString().slice(0, 10), wardrobeFilter = '';
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('mywardrobe', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function dbGet() {
+  try {
+    const db = await openDB();
+    return await new Promise((res, rej) => { const q = db.transaction('kv').objectStore('kv').get('state'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+  } catch (e) { return undefined; }
+}
+async function persist() {
+  try {
+    const db = await openDB();
+    await new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(state, 'state'); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+  } catch (e) { toast('Salvataggio non riuscito: lo spazio del browser è pieno o bloccato.'); }
+}
+
+/* ---------- Foto e colore (nessun invio di immagini a server) ---------- */
+function loadImage(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('img')); };
+    img.src = url;
+  });
+}
+async function shrinkPhoto(file) {
+  const img = await loadImage(file);
+  const r = Math.min(1, 900 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+function rgb2hsv(r, g, b) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let h = 0;
+  if (d > 0) { if (max === r) h = (g - b) / d; else if (max === g) h = (b - r) / d + 2; else h = (r - g) / d + 4; h = (h / 6 + 1) % 1; }
+  return [h, max === 0 ? 0 : d / max, max];
+}
+function colorName(h, s, v) {
+  if (v < .18) return 'Nero';
+  if (s < .12) return v > .85 ? 'Bianco' : 'Grigio';
+  if (s < .3 && v > .6 && h < .18) return 'Beige';
+  if (h < .04 || h >= .95) return 'Rosso';
+  if (h < .11) return v < .5 ? 'Marrone' : 'Arancione';
+  if (h < .18) return 'Giallo';
+  if (h < .45) return 'Verde';
+  if (h < .52) return 'Azzurro';
+  if (h < .70) return v < .35 ? 'Blu navy' : 'Blu';
+  if (h < .82) return 'Viola';
+  return 'Rosa';
+}
+/* Colore dominante del capo: campiona una versione piccola e scarta lo sfondo quasi bianco. */
+function analyzeColor(canvas) {
+  const s = document.createElement('canvas'); s.width = s.height = 32;
+  const x = s.getContext('2d'); x.drawImage(canvas, 0, 0, 32, 32);
+  const d = x.getImageData(0, 0, 32, 32).data;
+  const groups = {};
+  for (let i = 0; i < d.length; i += 4) {
+    const [h, sat, v] = rgb2hsv(d[i] / 255, d[i + 1] / 255, d[i + 2] / 255);
+    if (v > .93 && sat < .1) continue;
+    const n = colorName(h, sat, v);
+    const g = groups[n] || (groups[n] = { n: 0, h: 0, s: 0, v: 0 });
+    g.n++; g.h += h; g.s += sat; g.v += v;
+  }
+  const best = Object.entries(groups).sort((a, b) => b[1].n - a[1].n)[0];
+  if (!best) return { name: 'Nero', h: 0, s: 0, v: .1 };
+  const g = best[1];
+  return { name: best[0], h: g.h / g.n, s: g.s / g.n, v: g.v / g.n };
+}
+
+/* ---------- Motore di abbinamento (stessa logica di OutfitEngine.swift) ---------- */
+function snap(g) {
+  const c = CATS[g.category] || CATS['Altro'];
+  return { id: g.id, name: g.name, cat: g.category, slot: c.slot, warmth: c.warmth,
+    f: STYLES[g.style] ?? c.f, h: g.hue, s: g.sat, v: g.bri, seasons: g.seasons || [],
+    wp: /impermeab|gore/i.test(g.material || ''), last: g.lastWorn, photo: g.photo, color: g.colorName };
+}
+function warmthFor(temp, season) {
+  if (temp == null || temp === '') return { Primavera: 2, Estate: 1, Autunno: 3, Inverno: 4 }[season] ?? 2;
+  return temp < 5 ? 5 : temp < 12 ? 4 : temp < 18 ? 3 : temp < 24 ? 2 : 1;
+}
+const neutral = c => c.s < .15 || c.v < .18;
+function harmony(a, b) {
+  if (neutral(a) || neutral(b)) return .9;
+  let d = Math.abs(a.h - b.h); if (d > .5) d = 1 - d;
+  if (d < .09) return .85;
+  if (d > .42 && d < .58) return .8;
+  if (d > .25 && d < .35) return .7;
+  if (a.s > .5 && b.s > .5) return .3;
+  return .55;
+}
+const fitsSeason = (g, s) => g.seasons.includes(s) || g.seasons.includes(ALL);
+const resting = last => !last || (Date.now() - new Date(last).getTime()) > 7 * 864e5;
+function individual(g, ctx) {
+  let s = 1 - Math.min(1, Math.abs(g.warmth - ctx.target) * .25);
+  if (fitsSeason(g, ctx.season)) s += .3;
+  s -= Math.abs(g.f - ctx.occF) * .05;
+  s += .2 * (ctx.scores[g.id] || 0);
+  return s;
+}
+function evaluate(items, ctx) {
+  const ordered = [...items].sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
+  const clothing = ordered.filter(x => x.slot !== 'accessory');
+  const reasons = [], warnings = [];
+  const pairs = [];
+  for (let i = 0; i < clothing.length; i++) for (let j = i + 1; j < clothing.length; j++) pairs.push(harmony(clothing[i], clothing[j]));
+  const colorScore = pairs.length ? pairs.reduce((a, b) => a + b, 0) / pairs.length : .8;
+  const levels = clothing.map(x => x.f);
+  const mean = levels.length ? levels.reduce((a, b) => a + b, 0) / levels.length : 0;
+  const spread = levels.length ? Math.max(...levels) - Math.min(...levels) : 0;
+  const occFit = Math.max(0, 1 - Math.abs(mean - ctx.occF) * .25);
+  const coherence = Math.max(0, 1 - spread * .2);
+  const styleScore = .6 * occFit + .4 * coherence;
+  const fits = clothing.map(x => 1 - Math.min(1, Math.abs(x.warmth - ctx.target) * .25));
+  const weatherScore = fits.length ? fits.reduce((a, b) => a + b, 0) / fits.length : 0;
+  const outOfSeason = items.filter(x => !fitsSeason(x, ctx.season)).length;
+  const hasOuter = ordered.some(x => x.slot === 'outerwear');
+  if (clothing.some(x => x.warmth < ctx.target - 1)) warnings.push('Potrebbe essere troppo leggero per la temperatura');
+  if (clothing.some(x => x.warmth > ctx.target + 1)) warnings.push('Potrebbe essere troppo pesante per il clima');
+  if (ctx.target >= 4 && !hasOuter) warnings.push('Fa freddo: aggiungi una giacca o un cappotto');
+  if (outOfSeason) warnings.push(outOfSeason + ' capo/i non tipici della stagione');
+  let rain = 0;
+  if (ctx.rain) { if (ordered.some(x => x.slot === 'outerwear' && x.wp)) rain += .1; if (ordered.some(x => x.slot === 'shoes' && x.wp)) rain += .05; }
+  const learned = items.length ? items.reduce((a, x) => a + (ctx.scores[x.id] || 0), 0) / items.length : 0;
+  const profile = ctx.pref && Math.abs(mean - ctx.pref) < 1 ? .05 : 0;
+  const rested = items.length ? items.filter(x => resting(x.last)).length / items.length : 0;
+  const base = .4 * colorScore + .3 * styleScore + .3 * weatherScore;
+  const bonus = rain + .15 * learned + profile + .05 * rested;
+  const score = Math.min(1, Math.max(0, base + bonus - outOfSeason * .1));
+  if (colorScore >= .75) reasons.push('I colori si armonizzano bene');
+  if (colorScore < .5) warnings.push('Colori un po\' contrastanti: un capo neutro li ammorbidirebbe');
+  if (occFit >= .8) reasons.push('Adatto a: ' + ctx.occName.toLowerCase());
+  if (coherence >= .8) reasons.push('Capi con lo stesso livello di eleganza');
+  if (weatherScore >= .75) reasons.push('Adatto alla temperatura indicata');
+  if (!outOfSeason) reasons.push('Tutti i capi sono adatti a ' + ctx.season.toLowerCase());
+  if (rain) reasons.push('Include capi impermeabili per la pioggia');
+  if (learned > .2) reasons.push('Simile agli outfit che hai valutato bene');
+  if (!reasons.length) reasons.push('Combinazione valida con i capi che hai');
+  return { items: ordered, score, reasons, warnings };
+}
+const SLOTS = ['top', 'dress', 'bottom', 'shoes', 'outerwear', 'accessory'];
+function makeCtx(occName, season, temp, rain, scores, pref) {
+  const occF = OCCASIONS[occName] ?? 1;
+  return { occName, occF, season, rain, scores, pref: pref ? STYLES[pref] : null, target: warmthFor(temp, season) };
+}
+function suggest(garments, ctx, count = 3) {
+  const by = slot => garments.filter(g => g.slot === slot).sort((a, b) => individual(b, ctx) - individual(a, ctx));
+  const tops = by('top'), dresses = by('dress'), bottoms = by('bottom'), shoes = by('shoes'), outers = by('outerwear'), acc = by('accessory');
+  const needOuter = ctx.target >= 4 || ctx.rain;
+  const missing = [];
+  if (!tops.length && !dresses.length) missing.push('Manca una maglia, camicia o polo (oppure un abito)');
+  if (!bottoms.length && !dresses.length) missing.push('Manca un paio di pantaloni, jeans o una gonna (oppure un abito)');
+  if (!shoes.length) missing.push('Manca un paio di scarpe');
+  if (needOuter && !outers.length) missing.push(ctx.rain ? 'Manca una giacca impermeabile per la pioggia' : 'Manca una giacca o un cappotto per il freddo');
+  const bases = dresses.slice(0, 12).map(d => [d]);
+  for (const t of tops.slice(0, 12)) for (const b of bottoms.slice(0, 12)) bases.push([t, b]);
+  if (!bases.length || !shoes.length) return { outfits: [], missing };
+  const outerOpts = [null, ...outers.slice(0, 6)];
+  const cands = [];
+  for (const base of bases) for (const sh of shoes.slice(0, 8)) for (const o of outerOpts) {
+    const core = [...base, sh, ...(o ? [o] : [])];
+    let best = evaluate(core, ctx);
+    for (const a of acc.slice(0, 4)) { const c = evaluate([...core, a], ctx); if (c.score > best.score) best = c; }
+    cands.push(best);
+  }
+  cands.sort((a, b) => b.score - a.score);
+  const picked = [];
+  for (const strict of [2, 1]) {
+    for (const c of cands) {
+      if (picked.length >= count) break;
+      const ids = new Set(c.items.map(x => x.id));
+      const clash = picked.some(p => p.items.filter(x => ids.has(x.id)).length > ids.size - strict);
+      if (!clash) picked.push(c);
+    }
+  }
+  return { outfits: picked, missing };
+}
+function learnedScores(outfits) {
+  const sums = {}, counts = {};
+  for (const o of outfits) if (o.rating > 0) for (const id of o.itemIDs) { sums[id] = (sums[id] || 0) + (o.rating - 3) / 2; counts[id] = (counts[id] || 0) + 1; }
+  const out = {}; for (const id in sums) out[id] = sums[id] / counts[id]; return out;
+}
+
+/* ---------- Visualizzazione ---------- */
+const garmentById = id => state.garments.find(g => g.id === id);
+const snapOf = id => { const g = garmentById(id); return g ? snap(g) : null; };
+function thumb(g) { return g && g.photo ? `<div class="thumb"><img alt="${esc(g.name)}" src="${g.photo}"></div>` : `<div class="thumb"><span class="muted">Nessuna foto</span></div>`; }
+function composition(items) {
+  const parts = items.map(it => {
+    const [x, y, w, h] = LAYOUT[it.slot] || LAYOUT.accessory;
+    const img = it.photo ? `<img alt="${esc(it.name)}" src="${it.photo}">` : `<span class="muted">${esc(it.name)}</span>`;
+    return `<div class="it" style="left:${x * 100}%;top:${y * 100}%;--w:${w * 100}%;--h:${h * 100}%">${img}</div>`;
+  });
+  return `<div class="comp">${parts.join('')}</div>`;
+}
+function ctxFromUI() {
+  return { occ: 'Tempo libero' };
+}
+function currentScores() { return learnedScores(state.outfits); }
+
+function render() {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
+  const app = $('#app');
+  const views = { home: viewHome, wardrobe: viewWardrobe, stylist: viewStylist, favs: viewFavs, profile: viewProfile };
+  app.innerHTML = views[tab]();
+  bind();
+}
+
+function viewHome() {
+  const hour = new Date().getHours();
+  const hello = hour < 13 ? 'Buongiorno' : hour < 18 ? 'Buon pomeriggio' : 'Buonasera';
+  const unused = state.garments.filter(g => (!g.lastWorn ? new Date(g.dateAdded) : new Date(g.lastWorn)) < new Date(Date.now() - UNUSED_DAYS * 864e5)).length;
+  const head = `<div class="top"><div><p class="muted" style="margin:0">${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>${hello}</h1></div></div>`;
+  if (!state.garments.length) return head + `<div class="card"><h2>Guardaroba vuoto</h2><p class="muted">Aggiungi i tuoi capi: l'app ti proporrà gli abbinamenti.</p><div><button class="primary" data-go="wardrobe">Vai al guardaroba</button></div></div>`;
+  const ctx = makeCtx('Tempo libero', currentSeason(), state.settings.manualTemp, false, currentScores(), state.settings.style);
+  const res = suggest(state.garments.map(snap), ctx, 3);
+  const day = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 864e5);
+  const s = res.outfits.length ? res.outfits[day % res.outfits.length] : null;
+  return head +
+    (unused ? `<div class="card" style="border-color:var(--warn)"><p class="warn" style="margin:0">${unused} capi non indossati da più di ${UNUSED_DAYS} giorni: prova a rimetterli in gioco.</p></div>` : '') +
+    `<div class="card"><h2>Outfit del giorno</h2>${s ? composition(s.items) + `<div class="row"><span class="score">${Math.round(s.score * 100)}% armonia</span></div>` + s.reasons.map(r => `<p style="margin:0">${esc(r)}</p>`).join('') + s.warnings.map(w => `<p class="warn" style="margin:0">${esc(w)}</p>`).join('') + `<div class="row"><button class="primary" data-open-outfit='${esc(JSON.stringify({ ids: s.items.map(i => i.id), title: 'Outfit del giorno', occ: 'Tempo libero', season: currentSeason(), temp: state.settings.manualTemp }))}'>Dettagli e sostituzioni</button></div>` : `<div>${res.missing.map(m => `<p class="warn" style="margin:0">${esc(m)}</p>`).join('')}</div>`}</div>`;
+}
+function currentSeason() {
+  const m = new Date().getMonth();
+  return m < 2 || m === 11 ? 'Inverno' : m < 5 ? 'Primavera' : m < 8 ? 'Estate' : 'Autunno';
+}
+
+function viewWardrobe() {
+  const list = state.garments.filter(g => !wardrobeFilter || g.category === wardrobeFilter);
+  const cats = Object.keys(CATS).map(c => `<option value="${c}" ${wardrobeFilter === c ? 'selected' : ''}>${c}</option>`).join('');
+  const cards = list.map(g => `<button class="card" style="padding:10px;border-radius:18px;text-align:left" data-edit="${g.id}">${thumb(g)}<div><strong>${esc(g.name)}</strong></div><div class="muted">${esc(g.category)} · ${esc(g.colorName)}</div></button>`).join('');
+  return `<div class="top"><h1>Guardaroba</h1><button class="primary" data-add>Aggiungi</button></div>` +
+    (state.garments.length ? `<label class="field">Filtra per categoria<select id="filter"><option value="">Tutti</option>${cats}</select></label><div class="grid">${cards}</div>` : `<div class="card"><h2>Il guardaroba è vuoto</h2><p class="muted">Fotografa il primo capo: puoi usare la fotocamera del telefono.</p><div><button class="primary" data-add>Aggiungi un capo</button></div></div>`);
+}
+
+function viewStylist() {
+  const occOpts = Object.keys(OCCASIONS).map(o => `<option>${o}</option>`).join('');
+  const seasonOpts = SEASONS.map(s => `<option ${s === currentSeason() ? 'selected' : ''}>${s}</option>`).join('');
+  return `<div class="top"><h1>Stilista</h1></div>
+  <div class="card">
+    <label class="field">Occasione<select id="occ">${occOpts}</select></label>
+    <label class="field">Oppure descrivila (es. festa in terrazza)<input id="free" placeholder="Facoltativo"></label>
+    <label class="field">Stagione<select id="season">${seasonOpts}</select></label>
+    <label class="field">Temperatura (°C), facoltativa<input id="temp" type="number" min="-10" max="45" value="${state.settings.manualTemp ?? ''}" placeholder="Es. 18"></label>
+    <label class="field"><span><input id="rain" type="checkbox" style="width:auto"> Piove o è prevista pioggia</span></label>
+    <p class="muted" style="margin:0">Il meteo automatico non è disponibile in questa versione web: inserisci la temperatura a mano.</p>
+    <div class="row"><button class="primary" id="gen">Crea outfit</button><button id="rand">Outfit casuale</button></div>
+  </div>
+  <div id="results" style="display:grid;gap:14px"></div>`;
+}
+
+function viewFavs() {
+  const tabs = [['favs', 'Preferiti'], ['hist', 'Cronologia'], ['cal', 'Calendario']]
+    .map(([k, l]) => `<button data-favtab="${k}" aria-pressed="${favTab === k}" class="${favTab === k ? 'primary' : ''}">${l}</button>`).join('');
+  let body = '';
+  if (favTab === 'cal') {
+    const day = state.wears.filter(w => w.date.slice(0, 10) === calDay);
+    body = `<label class="field">Giorno<input type="date" id="calday" value="${calDay}"></label>` +
+      (day.length ? day.map(w => `<div class="card"><strong>${esc(w.title)}</strong><span class="muted">${w.itemIDs.length} capi</span></div>`).join('') : '<p class="muted">Nessun outfit registrato in questo giorno.</p>');
+  } else {
+    const list = favTab === 'favs' ? state.outfits.filter(o => o.fav) : [...state.outfits].reverse();
+    body = list.length ? list.map(o => `<button class="card" style="text-align:left" data-open-saved="${o.id}"><div class="row" style="justify-content:space-between"><strong>${esc(o.title)}</strong>${o.fav ? '<span class="tag">Preferito</span>' : ''}</div><div class="strip">${o.itemIDs.map(id => thumb(garmentById(id))).join('')}</div><span class="muted">${esc(o.occasion)}${o.rating ? ' · ' + '★'.repeat(o.rating) : ''}</span></button>`).join('')
+      : `<div class="card"><p class="muted">${favTab === 'favs' ? 'Nessun preferito. Apri un outfit e toccalo per salvarlo qui.' : 'La cronologia si riempie quando salvi, valuti o indossi un outfit.'}</p></div>`;
+  }
+  return `<div class="top"><h1>Preferiti</h1></div><div class="row">${tabs}</div>${body}`;
+}
+
+function viewProfile() {
+  const styles = ['', ...Object.keys(STYLES)].map(s => `<option value="${s}" ${state.settings.style === s ? 'selected' : ''}>${s || 'Nessuna preferenza'}</option>`).join('');
+  return `<div class="top"><h1>Profilo</h1></div>
+  <div class="card"><label class="field">Stile preferito<select id="pref">${styles}</select></label></div>
+  <div class="card"><h3>Dati</h3>
+    <p class="muted" style="margin:0">I dati restano in questo browser. Per fare un backup, copia il testo qui sotto e incollalo in una nota o un file da conservare.</p>
+    <div class="row"><button id="exp">Crea backup</button><button class="danger" id="wipe">Cancella tutti i dati</button></div>
+    <textarea id="backup" class="mono" placeholder="Il backup apparirà qui"></textarea>
+    <div class="row"><button id="copy">Copia backup</button></div>
+    <h3 style="margin-top:8px">Ripristino</h3>
+    <textarea id="restore" class="mono" placeholder="Incolla qui il testo del backup"></textarea>
+    <div class="row"><button id="imp">Ripristina</button></div>
+  </div>
+  <div class="card"><h3>Privacy</h3><p class="muted" style="margin:0">Le foto restano nel browser di questo dispositivo. Nessun account, nessun invio di foto a server esterni.</p></div>`;
+}
+
+/* ---------- Azioni e legami ---------- */
+function bind() {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); window.scrollTo(0, 0); });
+  document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { tab = b.dataset.go; render(); });
+  document.querySelectorAll('[data-add]').forEach(b => b.onclick = () => openEditor(null));
+  document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openEditor(b.dataset.edit));
+  document.querySelectorAll('[data-favtab]').forEach(b => b.onclick = () => { favTab = b.dataset.favtab; render(); });
+  document.querySelectorAll('[data-open-saved]').forEach(b => b.onclick = () => openSaved(b.dataset.openSaved));
+  document.querySelectorAll('[data-open-outfit]').forEach(b => b.onclick = () => openDetail(JSON.parse(b.dataset.openOutfit)));
+  const f = $('#filter'); if (f) f.onchange = () => { wardrobeFilter = f.value; render(); };
+  const gen = $('#gen'); if (gen) gen.onclick = () => generate(false);
+  const rnd = $('#rand'); if (rnd) rnd.onclick = () => generate(true);
+  const cal = $('#calday'); if (cal) cal.onchange = () => { calDay = cal.value; render(); };
+  const pref = $('#pref'); if (pref) pref.onchange = async () => { state.settings.style = pref.value; await persist(); toast('Preferenza salvata'); };
+  const exp = $('#exp'); if (exp) exp.onclick = () => { $('#backup').value = JSON.stringify(state); toast('Backup creato: copialo e conservalo'); };
+  const copy = $('#copy'); if (copy) copy.onclick = async () => { const t = $('#backup'); if (!t.value) return toast('Crea prima il backup'); t.select(); try { await navigator.clipboard.writeText(t.value); toast('Copiato'); } catch (e) { toast('Seleziona il testo e copialo a mano'); } };
+  const imp = $('#imp'); if (imp) imp.onclick = async () => {
+    try { const data = JSON.parse($('#restore').value); if (!Array.isArray(data.garments)) throw 0; state = { ...state, ...data }; await persist(); toast('Backup ripristinato'); render(); }
+    catch (e) { toast('Testo di backup non valido'); }
+  };
+  const wipe = $('#wipe'); if (wipe) wipe.onclick = () => openConfirm('Cancellare tutti i dati?', 'Capi, foto, outfit e calendario verranno eliminati. Crea prima un backup.', async () => { state = { garments: [], outfits: [], wears: [], settings: { style: '', manualTemp: null } }; await persist(); toast('Dati cancellati'); render(); });
+}
+function generate(random) {
+  const free = $('#free').value.trim();
+  const fromText = free ? OCC_RULES.find(([kw]) => kw.some(k => free.toLowerCase().includes(k))) : null;
+  const occ = fromText ? fromText[1] : $('#occ').value;
+  const temp = $('#temp').value === '' ? null : Number($('#temp').value);
+  state.settings.manualTemp = temp;
+  persist();
+  const ctx = makeCtx(occ, $('#season').value, temp, $('#rain').checked, currentScores(), state.settings.style);
+  const res = suggest(state.garments.map(snap), ctx, random ? 10 : 3);
+  const outfits = random ? (res.outfits.length ? [res.outfits[Math.floor(Math.random() * res.outfits.length)]] : []) : res.outfits;
+  const box = $('#results');
+  if (!outfits.length && !res.missing.length) { box.innerHTML = '<div class="card"><p class="muted">Nessun abbinamento possibile con i capi attuali.</p></div>'; return; }
+  box.innerHTML = res.missing.map(m => `<div class="card"><p class="warn" style="margin:0">${esc(m)}</p></div>`).join('') +
+    outfits.map((o, i) => `<button class="card" style="text-align:left" data-open-outfit='${esc(JSON.stringify({ ids: o.items.map(x => x.id), title: 'Proposta ' + (i + 1), occ, season: $('#season').value, temp, rain: ctx.rain }))}'>
+      <div class="row" style="justify-content:space-between"><h3>Proposta ${i + 1}</h3><span class="score">${Math.round(o.score * 100)}% armonia</span></div>
+      ${composition(o.items)}
+      ${o.reasons.slice(0, 2).map(r => `<span class="muted">${esc(r)}</span>`).join('<br>')}
+      ${o.warnings.map(w => `<span class="warn">${esc(w)}</span>`).join('<br>')}
+    </button>`).join('');
+  bind();
+}
+
+/* ---------- Scheda capo ---------- */
+function openEditor(id) {
+  const g = id ? garmentById(id) : { id: uid(), name: '', category: 'Altro', colorName: 'Nero', hue: 0, sat: 0, bri: .1, seasons: [ALL], style: 'Casual', material: '', brand: '', size: '', notes: '', photo: '', dateAdded: new Date().toISOString(), lastWorn: null, wearCount: 0 };
+  const isNew = !id;
+  const cats = Object.keys(CATS).map(c => `<option ${c === g.category ? 'selected' : ''}>${c}</option>`).join('');
+  const colors = PALETTE.map(([n]) => `<option ${n === g.colorName ? 'selected' : ''}>${n}</option>`).join('');
+  const styles = Object.keys(STYLES).map(s => `<option ${s === g.style ? 'selected' : ''}>${s}</option>`).join('');
+  const seasons = [...SEASONS, ALL].map(s => `<label class="row" style="gap:6px"><input type="checkbox" value="${s}" ${g.seasons.includes(s) ? 'checked' : ''} style="width:auto"> ${s}</label>`).join('');
+  $('#sheetBody').innerHTML = `
+    <div class="row" style="justify-content:space-between"><h2>${isNew ? 'Nuovo capo' : 'Scheda capo'}</h2><button class="ghost" data-close>Chiudi</button></div>
+    <div>${g.photo ? `<div class="thumb" style="max-height:260px"><img alt="" src="${g.photo}"></div>` : ''}
+      <label class="field" style="margin-top:10px">Foto (fotocamera o galleria)<input type="file" accept="image/*" capture="environment" id="photo"></label>
+      <p class="muted" style="margin:6px 0 0">Il browser non ritaglia lo sfondo: fotografa il capo su un fondo chiaro. Il colore viene letto dalla foto.</p></div>
+    <label class="field">Nome<input id="f-name" value="${esc(g.name)}"></label>
+    <label class="field">Categoria<select id="f-cat">${cats}</select></label>
+    <label class="field">Colore principale<select id="f-color">${colors}</select></label>
+    <label class="field">Stile<select id="f-style">${styles}</select></label>
+    <div class="field">Stagione<div class="row">${seasons}</div></div>
+    <label class="field">Materiale (es. cotone, impermeabile)<input id="f-mat" value="${esc(g.material)}"></label>
+    <div class="grid" style="grid-template-columns:1fr 1fr"><label class="field">Marca<input id="f-brand" value="${esc(g.brand)}"></label><label class="field">Taglia<input id="f-size" value="${esc(g.size)}"></label></div>
+    <label class="field">Note<textarea id="f-notes">${esc(g.notes)}</textarea></label>
+    <div class="row" style="justify-content:space-between">${isNew ? '<span></span>' : `<button class="danger" id="f-del">Elimina</button>`}<button class="primary" id="f-save">Salva</button></div>`;
+  let photo = g.photo, pickedColor = null;
+  $('#photo').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const canvas = await shrinkPhoto(file);
+      photo = canvas.toDataURL('image/jpeg', .85);
+      const c = analyzeColor(canvas);
+      pickedColor = c;
+      $('#f-color').value = c.name;
+      if (!$('#f-name').value) $('#f-name').value = $('#f-cat').value + ' ' + c.name.toLowerCase();
+      toast('Foto caricata. Colore riconosciuto: ' + c.name.toLowerCase());
+    } catch (err) { toast('Non riesco a leggere questa foto'); }
+  };
+  $('#sheetBody').querySelector('[data-close]').onclick = () => $('#sheet').close();
+  $('#f-save').onclick = async () => {
+    const name = $('#f-name').value.trim();
+    if (!name) return toast('Dai un nome al capo');
+    const colorName = $('#f-color').value;
+    const pal = PALETTE.find(p => p[0] === colorName);
+    const seasonsSel = [...$('#sheetBody').querySelectorAll('input[type=checkbox]')].filter(c => c.checked).map(c => c.value);
+    const next = { ...g, name, category: $('#f-cat').value, colorName, hue: pal[1], sat: pal[2], bri: pal[3], style: $('#f-style').value,
+      seasons: seasonsSel.length ? seasonsSel : [ALL], material: $('#f-mat').value.trim(), brand: $('#f-brand').value.trim(),
+      size: $('#f-size').value.trim(), notes: $('#f-notes').value.trim(), photo };
+    if (pickedColor && pickedColor.name === colorName) { next.hue = pickedColor.h; next.sat = pickedColor.s; next.bri = pickedColor.v; }
+    const i = state.garments.findIndex(x => x.id === next.id);
+    if (i >= 0) state.garments[i] = next; else state.garments.push(next);
+    await persist(); $('#sheet').close(); toast('Capo salvato'); render();
+  };
+  const del = $('#f-del');
+  if (del) del.onclick = () => openConfirm('Eliminare questo capo?', 'Il capo e la sua foto verranno eliminati.', async () => {
+    state.garments = state.garments.filter(x => x.id !== g.id);
+    await persist(); $('#sheet').close(); toast('Capo eliminato'); render();
+  });
+  $('#sheet').showModal();
+}
+function openConfirm(title, text, onYes) {
+  $('#sheetBody').innerHTML = `<h2>${esc(title)}</h2><p class="muted">${esc(text)}</p><div class="row" style="justify-content:flex-end"><button id="c-no">Annulla</button><button class="danger" id="c-yes">Conferma</button></div>`;
+  $('#c-no').onclick = () => $('#sheet').close();
+  $('#c-yes').onclick = onYes;
+  $('#sheet').showModal();
+}
+
+/* ---------- Dettaglio outfit: sostituzione, valutazione, calendario ---------- */
+function openSaved(id) {
+  const o = state.outfits.find(x => x.id === id); if (!o) return;
+  openDetail({ ids: o.itemIDs, title: o.title, occ: o.occasion, season: currentSeason(), temp: state.settings.manualTemp, savedId: o.id });
+}
+function openDetail(sess) {
+  let ids = [...sess.ids];
+  const ctxFor = () => makeCtx(sess.occ, sess.season, sess.temp ?? null, !!sess.rain, currentScores(), state.settings.style);
+  const draw = () => {
+    const items = ids.map(snapOf).filter(Boolean);
+    const ev = evaluate(items, ctxFor());
+    const saved = sess.savedId ? state.outfits.find(x => x.id === sess.savedId) : null;
+    const rating = saved ? saved.rating : 0;
+    $('#sheetBody').innerHTML = `
+      <div class="row" style="justify-content:space-between"><h2>${esc(sess.title)}</h2><button class="ghost" data-close>Chiudi</button></div>
+      ${composition(items)}
+      <div class="row"><span class="score">${Math.round(ev.score * 100)}% armonia</span></div>
+      ${ev.reasons.map(r => `<p style="margin:0">${esc(r)}</p>`).join('')}
+      ${ev.warnings.map(w => `<p class="warn" style="margin:0">${esc(w)}</p>`).join('')}
+      <div class="card"><h3>Capi</h3>${items.map(it => `<div class="row" style="justify-content:space-between"><span>${esc(it.name)} <span class="muted">${esc(it.color)}</span></span><button data-swap="${it.id}">Sostituisci</button></div><div id="alt-${it.id}"></div>`).join('')}</div>
+      <div class="card"><h3>Valutazione</h3><div class="stars">${[1, 2, 3, 4, 5].map(n => `<button data-star="${n}" class="${n <= rating ? 'on' : ''}" aria-label="${n} stelle">★</button>`).join('')}</div>
+      <div class="row"><button class="primary" id="wear">Indossato oggi</button><button id="fav">${saved && saved.fav ? 'Rimuovi dai preferiti' : 'Salva nei preferiti'}</button></div></div>`;
+    $('#sheetBody').querySelector('[data-close]').onclick = () => $('#sheet').close();
+    $('#sheetBody').querySelectorAll('[data-swap]').forEach(b => b.onclick = () => {
+      const old = snapOf(b.dataset.swap); const rest = ids.filter(x => x !== old.id).map(snapOf).filter(Boolean);
+      const box = $('#alt-' + old.id);
+      const alts = state.garments.filter(g => snap(g).slot === old.slot && g.id !== old.id)
+        .map(g => ({ g, s: evaluate([...rest, snap(g)], ctxFor()).score })).sort((a, b2) => b2.s - a.s);
+      box.innerHTML = alts.length ? alts.map(a => `<button style="margin:4px 0" data-pick="${a.g.id}" data-from="${old.id}">${esc(a.g.name)} · ${Math.round(a.s * 100)}%</button>`).join('') : '<p class="muted">Non hai altri capi di questa categoria.</p>';
+      box.querySelectorAll('[data-pick]').forEach(p => p.onclick = () => { ids = ids.map(x => x === p.dataset.from ? p.dataset.pick : x); persistSaved(); draw(); });
+    });
+    $('#sheetBody').querySelectorAll('[data-star]').forEach(b => b.onclick = async () => { const s = ensureSaved(); s.rating = Number(b.dataset.star); await persist(); draw(); });
+    $('#wear').onclick = async () => {
+      ensureSaved();
+      state.wears.push({ id: uid(), date: new Date().toISOString(), title: sess.title, itemIDs: ids });
+      state.garments.forEach(g => { if (ids.includes(g.id)) { g.lastWorn = new Date().toISOString(); g.wearCount = (g.wearCount || 0) + 1; } });
+      await persist(); toast('Registrato nel calendario di oggi'); draw();
+    };
+    $('#fav').onclick = async () => { const s = ensureSaved(); s.fav = !s.fav; await persist(); toast(s.fav ? 'Aggiunto ai preferiti' : 'Rimosso dai preferiti'); draw(); };
+  };
+  function ensureSaved() {
+    let s = sess.savedId ? state.outfits.find(x => x.id === sess.savedId) : null;
+    if (!s) { s = { id: uid(), title: sess.title, occasion: sess.occ, itemIDs: ids, rating: 0, fav: false, createdAt: new Date().toISOString() }; state.outfits.push(s); sess.savedId = s.id; }
+    return s;
+  }
+  function persistSaved() { const s = sess.savedId ? state.outfits.find(x => x.id === sess.savedId) : null; if (s) { s.itemIDs = ids; persist(); } }
+  $('#sheetBody').innerHTML = '';
+  draw();
+  $('#sheet').showModal();
+}
+
+render();
+(async () => {
+  const saved = await dbGet();
+  if (saved) state = { ...state, ...saved, settings: { ...state.settings, ...(saved.settings || {}) } };
+  render();
+})();
+</script>
